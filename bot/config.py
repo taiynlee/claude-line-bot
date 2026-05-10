@@ -7,12 +7,11 @@ load_dotenv()
 
 LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "")
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET", "")
-ALLOWED_USER_IDS = {
-    uid.strip() for uid in os.getenv("ALLOWED_USER_IDS", "").split(",") if uid.strip()
-}
-ALLOWED_GROUP_IDS = {
-    gid.strip() for gid in os.getenv("ALLOWED_GROUP_IDS", "").split(",") if gid.strip()
-}
+def _id_set(key: str) -> set[str]:
+    return {v.strip() for v in os.getenv(key, "").split(",") if v.strip()}
+
+ALLOWED_USER_IDS = _id_set("ALLOWED_USER_IDS")
+ALLOWED_GROUP_IDS = _id_set("ALLOWED_GROUP_IDS")
 CLAUDE_BIN = os.getenv("CLAUDE_BIN", "claude")
 CLAUDE_TIMEOUT = int(os.getenv("CLAUDE_TIMEOUT", "120"))
 MAX_TURNS = int(os.getenv("MAX_TURNS", "20"))

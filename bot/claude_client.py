@@ -1,6 +1,6 @@
 import asyncio
 
-from .config import CLAUDE_BIN, CLAUDE_TIMEOUT, SYSTEM_PROMPT_FILE
+from .config import CLAUDE_BIN, CLAUDE_TIMEOUT, MAX_TURNS, SYSTEM_PROMPT_FILE
 from . import memory
 
 _SYSTEM_PROMPT = SYSTEM_PROMPT_FILE.read_text(encoding="utf-8")
@@ -46,11 +46,10 @@ async def _call(prompt: str) -> str:
 
 async def chat(chat_id: str, user_text: str, lock: asyncio.Lock) -> str:
     async with lock:
-        history = memory.recent_messages(chat_id)
+        mem = memory.load(chat_id)
+        history = mem["messages"][-(MAX_TURNS * 2):]
         prompt = _build_prompt(history, user_text)
         reply = await _call(prompt)
-
-        mem = memory.load(chat_id)
         mem["messages"].append({"role": "user", "content": user_text})
         mem["messages"].append({"role": "assistant", "content": reply})
         memory.save(chat_id, mem)

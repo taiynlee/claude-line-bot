@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 import subprocess
 from datetime import datetime
 
@@ -34,7 +35,6 @@ log = logging.getLogger("claude-line-bot")
 
 
 def _check() -> None:
-    import os
     missing = [
         k for k in ("LINE_CHANNEL_ACCESS_TOKEN", "LINE_CHANNEL_SECRET")
         if not os.getenv(k)
@@ -72,6 +72,13 @@ def _lock(chat_id: str) -> asyncio.Lock:
     return _locks[chat_id]
 
 
+def _leave_chat(chat_id: str, src_type: str) -> None:
+    if src_type == "group":
+        line_bot_api.leave_group(chat_id)
+    else:
+        line_bot_api.leave_room(chat_id)
+
+
 @app.get("/")
 def root():
     return {"status": "ok", "service": "claude-line-bot"}
@@ -93,10 +100,7 @@ async def _handle_event(event: dict) -> None:
             except Exception:
                 pass
             try:
-                if src_type == "group":
-                    line_bot_api.leave_group(gid)
-                else:
-                    line_bot_api.leave_room(gid)
+                _leave_chat(gid, src_type)
             except Exception as exc:
                 log.exception(f"leave 失敗：{exc}")
         return
@@ -125,10 +129,7 @@ async def _handle_event(event: dict) -> None:
             except Exception:
                 pass
             try:
-                if src_type == "group":
-                    line_bot_api.leave_group(chat_id)
-                else:
-                    line_bot_api.leave_room(chat_id)
+                _leave_chat(chat_id, src_type)
             except Exception:
                 pass
             return
