@@ -38,6 +38,9 @@ restart_ngrok() {
   sleep 5
 }
 
+# ── 0. 刷新 Claude token（不足 1 小時自動刷新）
+"$UV_BIN" run python refresh_token.py 2>&1 | while IFS= read -r line; do log "$line"; done
+
 # ── 1. 檢查 Bot
 if curl -sf http://localhost:"$BOT_PORT"/ > /dev/null 2>&1; then
   log "✅ Bot OK"
