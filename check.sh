@@ -1,36 +1,30 @@
 #!/usr/bin/env bash
 # 健康檢查：自動偵測並重啟異常元件
 # 可手動執行，或由 cron 定期呼叫
-
 cd "$(dirname "$0")"
-
-UV_BIN="${UV_BIN:-$HOME/.local/bin/uv}"
-NGROK_BIN="${NGROK_BIN:-$HOME/.local/bin/ngrok}"
-CHECK_LOG=/tmp/bot-check.log
-
-if [ -f .env ]; then
-  export $(grep -v '^#' .env | xargs)
-fi
+source "$(dirname "$0")/lib.sh"
+load_env
 
 log() {
   local msg="[$(date '+%Y-%m-%d %H:%M:%S')] $*"
-  echo "$msg" >> "$CHECK_LOG"
-  echo "$msg"
+  echo "$msg" | tee -a "$CHECK_LOG"
+}
+
+_read_pid() {
+  awk "{print \$$1}" "$PIDS_FILE" 2>/dev/null || echo 0
 }
 
 restart_bot() {
   log "⚠️  Bot 異常，重啟中..."
   pkill -f "uvicorn main:app" 2>/dev/null || true
   sleep 1
-  nohup "$UV_BIN" run uvicorn main:app --host 0.0.0.0 --port 8000 \
-    >> /tmp/bot.log 2>&1 &
-  echo $! > /tmp/.bot-uvicorn.pid
+  local pid; pid=$(_start_bot)
+  save_pids "$pid" "$(_read_pid 2)"
   sleep 3
-  if curl -sf http://localhost:8000/ > /dev/null 2>&1; then
+  if curl -sf http://localhost:"$BOT_PORT"/ > /dev/null 2>&1; then
     log "✅ Bot 重啟成功"
-    return 0
   else
-    log "❌ Bot 重啟失敗，請手動檢查 /tmp/bot.log"
+    log "❌ Bot 重啟失敗，請手動檢查 $BOT_LOG"
     return 1
   fi
 }
@@ -39,52 +33,30 @@ restart_ngrok() {
   log "⚠️  ngrok 異常，重啟中..."
   pkill -f "ngrok http" 2>/dev/null || true
   sleep 1
-  setsid "$NGROK_BIN" http 8000 --log /tmp/ngrok-bot.log \
-    < /dev/null > /dev/null 2>&1 &
-  echo $! > /tmp/.ngrok.pid
+  local pid; pid=$(_start_ngrok)
+  save_pids "$(_read_pid 1)" "$pid"
   sleep 5
 }
 
-get_ngrok_url() {
-  for i in $(seq 1 10); do
-    local url
-    url=$(curl -s http://127.0.0.1:4040/api/tunnels 2>/dev/null | \
-      python3 -c "
-import sys, json
-try:
-    d = json.load(sys.stdin)['tunnels']
-    print(next(t['public_url'] for t in d if t['proto'] == 'https'))
-except:
-    print('')
-" 2>/dev/null || true)
-    [ -n "$url" ] && { echo "$url"; return 0; }
-    sleep 1
-  done
-  echo ""
-}
-
-# ── 1. 檢查 Bot ──────────────────────────────────────────────
-if curl -sf http://localhost:8000/ > /dev/null 2>&1; then
+# ── 1. 檢查 Bot
+if curl -sf http://localhost:"$BOT_PORT"/ > /dev/null 2>&1; then
   log "✅ Bot OK"
 else
   restart_bot || exit 1
 fi
 
-# ── 2. 檢查 ngrok ────────────────────────────────────────────
-NGROK_URL=$(get_ngrok_url)
+# ── 2. 檢查 ngrok
+NGROK_URL=$(get_ngrok_url 10)
 if [ -z "$NGROK_URL" ]; then
   restart_ngrok
-  NGROK_URL=$(get_ngrok_url)
-  if [ -z "$NGROK_URL" ]; then
-    log "❌ ngrok 重啟失敗，無法取得 URL"
-    exit 1
-  fi
+  NGROK_URL=$(get_ngrok_url 10)
+  [ -n "$NGROK_URL" ] || { log "❌ ngrok 重啟失敗，無法取得 URL"; exit 1; }
   log "✅ ngrok 重啟成功：$NGROK_URL"
 else
   log "✅ ngrok OK：$NGROK_URL"
 fi
 
-# ── 3. 檢查 LINE webhook ─────────────────────────────────────
+# ── 3. 檢查 LINE webhook
 EXPECTED="$NGROK_URL/webhook"
 CURRENT=$(curl -s https://api.line.me/v2/bot/channel/webhook/endpoint \
   -H "Authorization: Bearer $LINE_CHANNEL_ACCESS_TOKEN" 2>/dev/null | \
@@ -92,10 +64,7 @@ CURRENT=$(curl -s https://api.line.me/v2/bot/channel/webhook/endpoint \
 
 if [ "$CURRENT" != "$EXPECTED" ]; then
   log "⚠️  LINE webhook 不符，更新中..."
-  curl -s -X PUT https://api.line.me/v2/bot/channel/webhook/endpoint \
-    -H "Authorization: Bearer $LINE_CHANNEL_ACCESS_TOKEN" \
-    -H "Content-Type: application/json" \
-    -d "{\"endpoint\":\"$EXPECTED\"}" > /dev/null
+  update_line_webhook "$EXPECTED"
   log "✅ LINE webhook 已更新 → $EXPECTED"
 else
   log "✅ LINE webhook OK"
