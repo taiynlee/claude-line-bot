@@ -18,6 +18,7 @@ def load(chat_id: str) -> dict:
 
 
 def save(chat_id: str, mem: dict) -> None:
+    mem["messages"] = mem["messages"][-(MAX_TURNS * 2):]
     _path(chat_id).write_text(
         json.dumps(mem, ensure_ascii=False, indent=2), encoding="utf-8"
     )
