@@ -21,7 +21,9 @@ uv run uvicorn main:app --host 0.0.0.0 --port 8000 &
 BOT_PID=$!
 
 echo "▶ 啟動 ngrok..."
-"$NGROK_BIN" http 8000 > /tmp/ngrok-bot.log 2>&1 &
+# setsid + stdin 切斷，確保 ngrok 存活於父行程結束後
+setsid "$NGROK_BIN" http 8000 --log /tmp/ngrok-bot.log \
+  < /dev/null > /dev/null 2>&1 &
 NGROK_PID=$!
 sleep 4
 
