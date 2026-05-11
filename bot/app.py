@@ -182,10 +182,17 @@ async def _handle_event(event: dict) -> None:
         log.warning("Claude 回空字串，改用預設訊息")
         reply = "（Claude 沒有回應，請再試一次）"
 
-    line_bot_api.push_message(
-        push_target,
-        [TextSendMessage(text=c) for c in split_for_line(reply)],
-    )
+    msgs = [TextSendMessage(text=c) for c in split_for_line(reply)]
+    # reply_message 免費不限量，但 replyToken 有時效；失敗才 fallback push_message
+    if reply_token:
+        try:
+            line_bot_api.reply_message(reply_token, msgs[:5])
+            if len(msgs) > 5:
+                line_bot_api.push_message(push_target, msgs[5:])
+            return
+        except Exception:
+            pass
+    line_bot_api.push_message(push_target, msgs)
 
 
 async def _handle_event_safe(event: dict) -> None:
