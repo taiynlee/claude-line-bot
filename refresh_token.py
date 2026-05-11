@@ -5,6 +5,7 @@ Reads credentials from ~/.claude/.credentials.json, refreshes the access token,
 and writes back to all known credential locations.
 """
 import json
+import os
 import sys
 import time
 import urllib.request
@@ -16,10 +17,17 @@ CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
 USER_AGENT = "Mozilla/5.0 claude-code/2.1.138"
 REFRESH_THRESHOLD_MS = 3600 * 1000  # refresh when < 1 hour left
 
-CRED_PATHS = [
-    Path("/mnt/c/Users/tommy/.claude/.credentials.json"),
-    Path.home() / ".claude" / ".credentials.json",
-]
+def _cred_paths() -> list[Path]:
+    paths = [Path.home() / ".claude" / ".credentials.json"]
+    # Under WSL, also check Windows-side credentials (scan /mnt/c/Users/)
+    win_users = Path("/mnt/c/Users")
+    if win_users.is_dir():
+        for p in win_users.iterdir():
+            cred = p / ".claude" / ".credentials.json"
+            if cred.exists():
+                paths.insert(0, cred)
+                break
+    return paths
 
 
 def load_creds(path: Path) -> dict | None:
@@ -50,7 +58,7 @@ def do_refresh(refresh_token: str) -> dict:
 
 def main() -> None:
     creds = None
-    for p in CRED_PATHS:
+    for p in _cred_paths():
         creds = load_creds(p)
         if creds:
             break
@@ -94,7 +102,7 @@ def main() -> None:
     new_expires_at = now_ms + expires_in * 1000
     new_refresh = result.get("refresh_token", refresh_token)
 
-    for p in CRED_PATHS:
+    for p in _cred_paths():
         data = load_creds(p)
         if not data:
             continue
