@@ -12,8 +12,12 @@ load_env
 kill_all
 sleep 1
 
-echo "▶ 清除對話記憶..."
-rm -f memory/*.json
+if [ "${KEEP_MEMORY:-0}" = "1" ]; then
+  echo "▶ 保留對話記憶"
+else
+  echo "▶ 清除對話記憶..."
+  rm -f memory/*.json
+fi
 
 echo "▶ 啟動 bot (port $BOT_PORT)..."
 BOT_PID=$(_start_bot)

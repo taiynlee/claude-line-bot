@@ -13,6 +13,7 @@ from . import claude_client, memory
 from .config import (
     ALLOWED_GROUP_IDS,
     ALLOWED_USER_IDS,
+    BASE_DIR,
     CLAUDE_BIN,
     CLAUDE_TIMEOUT,
     LINE_CHANNEL_ACCESS_TOKEN,
@@ -154,6 +155,26 @@ async def _handle_event(event: dict) -> None:
             except Exception:
                 pass
             return
+
+    if user_text.strip() in ("/重啟保留", "/重啟清除"):
+        keep = user_text.strip() == "/重啟保留"
+        msg = "🔄 重啟中（保留記憶）..." if keep else "🔄 重啟中（清除記憶）..."
+        try:
+            line_bot_api.reply_message(reply_token, TextSendMessage(text=msg))
+        except Exception:
+            line_bot_api.push_message(push_target, TextSendMessage(text=msg))
+        env = os.environ.copy()
+        if keep:
+            env["KEEP_MEMORY"] = "1"
+        subprocess.Popen(
+            ["bash", str(BASE_DIR / "start.sh")],
+            env=env,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        return
 
     if user_text.strip() in ("/reset", "/清除記憶"):
         memory.clear(chat_id)
