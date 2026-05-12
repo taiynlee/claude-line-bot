@@ -12,6 +12,9 @@ load_env
 kill_all
 sleep 1
 
+echo "▶ 清除對話記憶..."
+rm -f memory/*.json
+
 echo "▶ 啟動 bot (port $BOT_PORT)..."
 BOT_PID=$(_start_bot)
 
