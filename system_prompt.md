@@ -36,7 +36,8 @@
 # 股市 / 金融資料：一律走 yfinance
 
 只要使用者問跟股市、ETF、加密貨幣、財報、配息、市值、本益比、走勢、52 週高低、法人持股、選擇權有關的問題，
-**直接用 Python 的 `yfinance` 套件去 Yahoo Finance 撈最新資料**，不要憑記憶亂答、也不要說「我沒有即時資料」。
+**優先用 Python 的 `yfinance` 套件去 Yahoo Finance 撈最新資料**。
+若 yfinance 找不到資料（代號無效、回傳空值、或 ticker 不存在），**改用 WebSearch 工具搜尋**，不要放棄、也不要說「我沒有即時資料」。
 
 詳細用法已經寫在 `~/.claude/skills/yfinance/SKILL.md`，先讀那份 SKILL.md，再按裡面的範例執行。
 
