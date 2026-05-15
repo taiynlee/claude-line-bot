@@ -4,6 +4,7 @@ cd "$(dirname "$0")"
 source "$(dirname "$0")/lib.sh"
 load_env
 
+chmod +x "$(dirname "$0")"/*.sh 2>/dev/null || true
 [ -f .env ]  || { echo "❌ .env 不存在，先複製 .env.example"; exit 1; }
 [ -n "${LINE_CHANNEL_ACCESS_TOKEN:-}" ] || { echo "❌ LINE_CHANNEL_ACCESS_TOKEN 未設定"; exit 1; }
 [ -x "$UV_BIN" ]    || { echo "❌ uv 找不到 ($UV_BIN)"; exit 1; }

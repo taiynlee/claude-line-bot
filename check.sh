@@ -48,12 +48,25 @@ else
   restart_bot || exit 1
 fi
 
-# ── 2. 檢查 ngrok
+# ── 2. 檢查 ngrok（先取 URL，再實際打洞確認 tunnel 真的通）
 NGROK_URL=$(get_ngrok_url 10)
-if [ -z "$NGROK_URL" ]; then
+_tunnel_ok() {
+  [ -n "$NGROK_URL" ] && curl -sf --max-time 8 "$NGROK_URL" > /dev/null 2>&1
+}
+
+if ! _tunnel_ok; then
+  if [ -z "$NGROK_URL" ]; then
+    log "⚠️  ngrok 無法取得 URL，重啟中..."
+  else
+    log "⚠️  ngrok tunnel 無回應（heartbeat 斷線），重啟中..."
+  fi
   restart_ngrok
   NGROK_URL=$(get_ngrok_url 10)
   [ -n "$NGROK_URL" ] || { log "❌ ngrok 重啟失敗，無法取得 URL"; exit 1; }
+  if ! _tunnel_ok; then
+    log "❌ ngrok 重啟後 tunnel 仍無回應，請手動檢查"
+    exit 1
+  fi
   log "✅ ngrok 重啟成功：$NGROK_URL"
 else
   log "✅ ngrok OK：$NGROK_URL"
