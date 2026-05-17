@@ -93,13 +93,35 @@ _handle_event()
 # 一鍵啟動（推薦）
 ./start.sh
 
+# 保留記憶重啟
+KEEP_MEMORY=1 bash start.sh
+
 # 手動分開跑
 make dev    # uvicorn --reload
 make ngrok  # ngrok http 8000
 
 # 停止
 ./stop.sh
+
+# 健康檢查（cron 自動每 5 分鐘執行）
+bash check.sh
 ```
+
+## 可靠性設計
+
+### check.sh（cron */5 分鐘）
+1. Claude token refresh（剩 < 1 小時才刷）
+2. Bot HTTP 健康確認
+3. **ngrok 實際連通性測試**（curl tunnel URL，防止 heartbeat 斷線假陽性）
+4. LINE webhook 端點同步
+
+### start.sh
+- 每次啟動自動 `chmod +x *.sh`（防止 git pull 後權限丟失）
+
+### Windows 電源（Task Scheduler）
+- `BotSleepEnable`（00:00）：standby-timeout-ac = 10 分鐘
+- `BotSleepDisable`（06:00）：standby-timeout-ac = 0（永不）+ WakeToRun
+- 需啟用 wake timer：`powercfg /setacvalueindex SCHEME_CURRENT SUB_SLEEP RTCWAKE 1`
 
 ## 環境變數（.env）
 

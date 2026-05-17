@@ -143,6 +143,32 @@ claude-line-bot/
 └── .env.example           # 環境變數範本
 ```
 
+## 健康檢查（check.sh）
+
+`check.sh` 由 WSL cron 每 5 分鐘自動執行：
+
+1. 刷新 Claude OAuth token（剩餘 < 1 小時才刷新）
+2. 確認 bot HTTP 回應正常
+3. 實際 curl ngrok tunnel URL 確認連線（非只查本地 API）
+4. 比對 LINE webhook endpoint，不符則自動更新
+
+```bash
+bash check.sh   # 手動執行
+tail -f /tmp/bot-check.log  # 查看執行記錄
+```
+
+## Windows 電源設定
+
+為避免 Windows 休眠凍結 WSL，建議設定：
+
+| 時間 | 行為 |
+|------|------|
+| 00:00 | 開啟休眠（閒置 10 分鐘後睡） |
+| 06:00 | 自動喚醒 + 關閉休眠 |
+| 其餘時間 | 螢幕 10 分鐘關，電腦永不休眠 |
+
+透過 Windows 工作排程器（Task Scheduler）實作，需 BIOS 支援 RTC wake。
+
 ## 故障排除
 
 | 症狀 | 修法 |
@@ -150,7 +176,8 @@ claude-line-bot/
 | `claude: command not found` | WSL 內執行 `npm install -g @anthropic-ai/claude-code`，或在 `.env` 設 `CLAUDE_BIN=完整路徑` |
 | 回應超慢（>30s） | Cold start 正常，後續會快。可調高 `CLAUDE_TIMEOUT` |
 | LINE 沒收到回覆 | 看 `logs/` 內當天 log，確認 Claude Code 有回覆 |
-| ngrok 網址每次變 | 正常（免費版），每次重啟後更新 LINE Console 的 webhook URL |
+| ngrok 斷線（heartbeat timeout） | `bash check.sh` 手動重啟；平時由 cron 每 5 分鐘自動偵測 |
+| 電腦休眠後 bot 停用 | 確認 Windows 電源設定永不休眠，或等 06:00 自動喚醒 |
 
 ## 注意事項
 
