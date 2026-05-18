@@ -22,17 +22,16 @@ from .config import (
 )
 from .line_handler import is_bot_command, split_for_line, strip_mentions, verify_signature
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler(
-            LOG_DIR / f"{datetime.now():%Y-%m-%d}.log", encoding="utf-8"
-        ),
-        logging.StreamHandler(),
-    ],
-)
 log = logging.getLogger("claude-line-bot")
+log.setLevel(logging.INFO)
+log.propagate = False
+_fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+for _h in [
+    logging.FileHandler(LOG_DIR / f"{datetime.now():%Y-%m-%d}.log", encoding="utf-8"),
+    logging.StreamHandler(),
+]:
+    _h.setFormatter(_fmt)
+    log.addHandler(_h)
 
 
 def _check() -> None:
