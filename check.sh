@@ -10,6 +10,15 @@ log() {
   echo "$msg" | tee -a "$CHECK_LOG"
 }
 
+notify_line() {
+  [ -z "${LINE_CHANNEL_ACCESS_TOKEN:-}" ] && return
+  [ -z "${NOTIFY_USER_ID:-}" ] && return
+  curl -s -X POST https://api.line.me/v2/bot/message/push \
+    -H "Authorization: Bearer $LINE_CHANNEL_ACCESS_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "{\"to\":\"$NOTIFY_USER_ID\",\"messages\":[{\"type\":\"text\",\"text\":\"🚨 Bot 警報\\n$1\"}]}" > /dev/null
+}
+
 _read_pid() {
   awk "{print \$$1}" "$PIDS_FILE" 2>/dev/null || echo 0
 }
@@ -25,6 +34,7 @@ restart_bot() {
     log "✅ Bot 重啟成功"
   else
     log "❌ Bot 重啟失敗，請手動檢查 $BOT_LOG"
+    notify_line "Bot 重啟失敗，請手動處理。\n原因請查 $BOT_LOG"
     return 1
   fi
 }
@@ -62,9 +72,14 @@ if ! _tunnel_ok; then
   fi
   restart_ngrok
   NGROK_URL=$(get_ngrok_url 10)
-  [ -n "$NGROK_URL" ] || { log "❌ ngrok 重啟失敗，無法取得 URL"; exit 1; }
+  if [ -z "$NGROK_URL" ]; then
+    log "❌ ngrok 重啟失敗，無法取得 URL"
+    notify_line "ngrok 重啟失敗，無法取得 tunnel URL"
+    exit 1
+  fi
   if ! _tunnel_ok; then
     log "❌ ngrok 重啟後 tunnel 仍無回應，請手動檢查"
+    notify_line "ngrok tunnel 重啟後仍無回應，請手動處理"
     exit 1
   fi
   log "✅ ngrok 重啟成功：$NGROK_URL"
