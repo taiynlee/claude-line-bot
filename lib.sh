@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Shared helpers — source this file, do not execute directly.
 
-BOT_PORT=8000
+BOT_PORT=8001
 BOT_LOG=/tmp/bot.log
 NGROK_LOG=/tmp/ngrok-bot.log
 PIDS_FILE=/tmp/.bot-pids
