@@ -187,6 +187,40 @@ async def _handle_event(event: dict) -> None:
             )
         return
 
+    if user_text.strip() in ("/今日結果", "/篩選", "/stocks"):
+        import httpx
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get("http://localhost:8000/api/screener", timeout=10)
+            data = resp.json()
+        except Exception as e:
+            data = None
+            err = str(e)
+        if data is None:
+            reply = f"⚠️ 查詢篩選結果失敗：{err}"
+        elif not data:
+            reply = "📊 今日尚無符合條件的股票（資料可能還沒跑完）"
+        else:
+            from datetime import date as _date
+            lines = [f"📊 今日篩選結果（{_date.today()}）共 {len(data)} 檔\n"]
+            for r in data:
+                tags = r.get("tags") or []
+                strategy = next((t for t in reversed(tags) if t in ("A", "B", "A+B")), "")
+                icon = "🔴" if r["score"] >= 80 else "🟡"
+                lines.append(
+                    f"{icon} {r['code']} {r['name']}"
+                    + (f" [{strategy}]" if strategy else "")
+                    + f" 分={r['score']:.0f}\n"
+                    f"   BB={r['bb_position']:.1f} chip6d={r['chip_ratio_6d']:.2f}%"
+                )
+            reply = "\n".join(lines)
+        msgs = [TextSendMessage(text=c) for c in split_for_line(reply)]
+        try:
+            line_bot_api.reply_message(reply_token, msgs[:5])
+        except Exception:
+            line_bot_api.push_message(push_target, msgs[:5])
+        return
+
     log.info(f"[{src_type}:{chat_id[:8]}] 收到：{user_text[:50]}")
 
     try:
